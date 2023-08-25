@@ -13,6 +13,7 @@ type ServerBackend struct {
 }
 
 var servers = []ServerBackend{
+	// TODO add configuration instead of hardcoding this
 	{Url: "http://localhost:8081", Healthy: true},
 	{Url: "http://localhost:8082", Healthy: true},
 }
@@ -36,6 +37,7 @@ func healthCheck() {
 
 func getNextServer() string {
 	for {
+		// TODO fix this loop
 		server := servers[currentServer]
 		currentServer = (currentServer + 1) % len(servers)
 		if server.Healthy {
@@ -47,6 +49,7 @@ func getNextServer() string {
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request from %s\n", r.RemoteAddr)
 	server := getNextServer()
+	// TODO fix this handling of bad servers
 	if server == "" {
 		http.Error(w, "No available servers", http.StatusServiceUnavailable)
 		return
