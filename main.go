@@ -2,25 +2,55 @@ package main
 
 import (
 	"io"
+	"log"
 	"net/http"
+	"time"
 )
 
-var servers = []string{
-	"http://localhost:8081",
-	"http://localhost:8082",
-	// Add more backend servers as needed
+type ServerBackend struct {
+	Url     string
+	Healthy bool
+}
+
+var servers = []ServerBackend{
+	{Url: "http://localhost:8081", Healthy: true},
+	{Url: "http://localhost:8082", Healthy: true},
 }
 
 var currentServer = 0
 
+func healthCheck() {
+	for {
+		for i, server := range servers {
+			resp, err := http.Head(server.Url)
+			if err != nil || resp.StatusCode != 200 {
+				// Mark as unhealthy
+				servers[i].Healthy = false
+			} else {
+				servers[i].Healthy = true
+			}
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
 func getNextServer() string {
-	server := servers[currentServer]
-	currentServer = (currentServer + 1) % len(servers)
-	return server
+	for {
+		server := servers[currentServer]
+		currentServer = (currentServer + 1) % len(servers)
+		if server.Healthy == true {
+			return server.Url
+		}
+	}
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Received request from %s\n", r.RemoteAddr)
 	server := getNextServer()
+	if server == "" {
+		http.Error(w, "No available servers", http.StatusServiceUnavailable)
+		return
+	}
 
 	// Update the request URL with the backend server's URL
 	r.URL.Scheme = "http"
@@ -32,6 +62,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	log.Printf("Forwarded request to %s\n", server)
 
 	// Copy the response back to the client
 	for key, values := range resp.Header {
@@ -39,11 +70,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(key, value)
 		}
 	}
+	log.Printf("Responded to %s\n", r.RemoteAddr)
 	io.Copy(w, resp.Body)
 	resp.Body.Close()
 }
 
 func main() {
+	go healthCheck()
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8080", nil)
 }
