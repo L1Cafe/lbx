@@ -38,7 +38,7 @@ func getNextServer() string {
 	for {
 		server := servers[currentServer]
 		currentServer = (currentServer + 1) % len(servers)
-		if server.Healthy == true {
+		if server.Healthy {
 			return server.Url
 		}
 	}
