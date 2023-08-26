@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
+var serverMutex sync.Mutex
+
 type ServerBackend struct {
 	Url     string
 	Healthy bool
 }
 
 var currentServerIndex int = 0
-
-var serverMutex sync.Mutex
 
 var servers = []ServerBackend{
 	// TODO add configuration instead of hardcoding this
@@ -39,7 +39,7 @@ func healthCheck() {
 				serverMutex.Unlock()
 			}
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * time.Second) // TODO configure this timer
 	}
 }
 
@@ -87,7 +87,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Responded to %s\n", r.RemoteAddr)
 	io.Copy(w, resp.Body)
-	resp.Body.Close()
 }
 
 func main() {
