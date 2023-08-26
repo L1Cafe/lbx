@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -16,6 +19,16 @@ const (
 	Fatal = 3
 )
 
+type ConfigParsed struct {
+	Servers       []Server      `yaml: "servers"`
+	RefreshPeriod time.Duration `yaml: "refresh_period"`
+}
+
+type ConfigRaw struct {
+	Servers       []string      `yaml: "servers"`
+	RefreshPeriod time.Duration `yaml: "refresh_period"`
+}
+
 type Server struct {
 	Url     string
 	Healthy bool
@@ -24,17 +37,32 @@ type Server struct {
 // To ensure thread safety
 var serverMutex sync.Mutex
 
+var servers []Server
+
 // currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0
 
-var servers = []Server{
-	// TODO add configuration instead of hardcoding this
-	{Url: "http://localhost:8081", Healthy: true},
-	{Url: "http://localhost:8082", Healthy: true},
+func loadConfig(file string) (*ConfigParsed, error) {
+	var configRaw ConfigRaw
+	var configParsed ConfigParsed
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(data, &configRaw)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range configRaw.Servers {
+		configParsed.Servers = append(configParsed.Servers, Server{Url: s, Healthy: true})
+	}
+	configParsed.RefreshPeriod = configRaw.RefreshPeriod
+	return &configParsed, nil
 }
 
 func logWrapper(level int, msg string) {
-	var levelStr string
+	var levelStr string // TODO configurable logging output
+	fatal := false
 	switch level {
 	case Info:
 		levelStr = "INFO "
@@ -44,13 +72,18 @@ func logWrapper(level int, msg string) {
 		levelStr = "ERROR"
 	case Fatal:
 		levelStr = "FATAL"
+		fatal = true
 	default:
 		levelStr = "?"
 	}
-	log.Printf("[%s] %s\n", levelStr, msg)
+	if fatal {
+		log.Fatalf("[%s] %s\n", levelStr, msg)
+	} else {
+		log.Printf("[%s] %s\n", levelStr, msg)
+	}
 }
 
-func healthCheck() {
+func healthCheck(t time.Duration) {
 	for {
 		for i, server := range servers {
 			resp, err := http.Head(server.Url)
@@ -65,7 +98,7 @@ func healthCheck() {
 				serverMutex.Unlock()
 			}
 		}
-		time.Sleep(10 * time.Second) // TODO configure this timer
+		time.Sleep(t) // TODO configure this timer
 	}
 }
 
@@ -116,7 +149,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	go healthCheck()
+	config, err := loadConfig("config.yaml")
+	if err != nil {
+		logWrapper(Fatal, fmt.Sprintf("Error loading config: %s", err.Error()))
+	}
+	go healthCheck(config.RefreshPeriod)
+	servers = config.Servers
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8080", nil)
 }
