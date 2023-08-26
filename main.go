@@ -58,10 +58,10 @@ func getServer() (string, error) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Received request from %s\n", r.RemoteAddr)
+	log.Printf("Received request from %s: %s\n", r.RemoteAddr, r.RequestURI)
 	server, serverErr := getServer()
-	// TODO fix this handling of bad servers
 	if serverErr != nil {
+		log.Printf("ERROR: %s, request not fulfilled\n", serverErr.Error())
 		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
 		return
 	}
