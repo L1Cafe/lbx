@@ -59,7 +59,7 @@ func getServer() (string, error) {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request from %s: %s\n", r.RemoteAddr, r.RequestURI)
-	server, serverErr := getServer()
+	serverAddr, serverErr := getServer()
 	if serverErr != nil {
 		log.Printf("ERROR: %s, request not fulfilled\n", serverErr.Error())
 		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
@@ -68,7 +68,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	// Update the request URL with the backend server's URL
 	r.URL.Scheme = "http"
-	r.URL.Host = server
+	r.URL.Host = serverAddr
 
 	// Forward the request to the chosen backend server
 	resp, err := http.DefaultTransport.RoundTrip(r)
@@ -76,7 +76,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	log.Printf("Forwarded request to %s\n", server)
+	defer resp.Body.Close()
+	log.Printf("Forwarded request to %s\n", serverAddr)
 
 	// Copy the response back to the client
 	for key, values := range resp.Header {
