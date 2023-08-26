@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,8 @@ type ServerBackend struct {
 }
 
 var currentServerIndex int = 0
+
+var serverMutex sync.Mutex
 
 var servers = []ServerBackend{
 	// TODO add configuration instead of hardcoding this
@@ -27,9 +30,13 @@ func healthCheck() {
 			resp, err := http.Head(server.Url)
 			if err != nil || resp.StatusCode != 200 {
 				// Mark as unhealthy
+				serverMutex.Lock()
 				servers[i].Healthy = false
+				serverMutex.Unlock()
 			} else {
+				serverMutex.Lock()
 				servers[i].Healthy = true
+				serverMutex.Unlock()
 			}
 		}
 		time.Sleep(10 * time.Second)
@@ -37,6 +44,8 @@ func healthCheck() {
 }
 
 func getServer() (string, error) {
+	serverMutex.Lock()
+	defer serverMutex.Unlock()
 	for i := 0; i < len(servers); i++ {
 		currentServer := servers[currentServerIndex]
 		currentServerIndex = (currentServerIndex + 1) % len(servers)
