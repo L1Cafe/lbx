@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,13 +13,13 @@ type ServerBackend struct {
 	Healthy bool
 }
 
+var currentServerIndex int = 0
+
 var servers = []ServerBackend{
 	// TODO add configuration instead of hardcoding this
 	{Url: "http://localhost:8081", Healthy: true},
 	{Url: "http://localhost:8082", Healthy: true},
 }
-
-var currentServer = 0
 
 func healthCheck() {
 	for {
@@ -35,23 +36,24 @@ func healthCheck() {
 	}
 }
 
-func getNextServer() string {
-	for {
-		// TODO fix this loop
-		server := servers[currentServer]
-		currentServer = (currentServer + 1) % len(servers)
-		if server.Healthy {
-			return server.Url
+func getServer() (string, error) {
+	for i := 0; i < len(servers); i++ {
+		currentServer := servers[currentServerIndex]
+		currentServerIndex = (currentServerIndex + 1) % len(servers)
+
+		if currentServer.Healthy {
+			return currentServer.Url, nil
 		}
 	}
+	return "", fmt.Errorf("no healthy servers available")
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Received request from %s\n", r.RemoteAddr)
-	server := getNextServer()
+	server, serverErr := getServer()
 	// TODO fix this handling of bad servers
-	if server == "" {
-		http.Error(w, "No available servers", http.StatusServiceUnavailable)
+	if serverErr != nil {
+		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
