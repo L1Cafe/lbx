@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+const (
+	Info  = 0
+	Warn  = 1
+	Error = 2
+	Fatal = 3
+)
+
 var serverMutex sync.Mutex
 
 type ServerBackend struct {
@@ -22,6 +29,23 @@ var servers = []ServerBackend{
 	// TODO add configuration instead of hardcoding this
 	{Url: "http://localhost:8081", Healthy: true},
 	{Url: "http://localhost:8082", Healthy: true},
+}
+
+func logWrapper(level int, msg string) {
+	var levelStr string
+	switch level {
+	case Info:
+		levelStr = "INFO "
+	case Warn:
+		levelStr = "WARN "
+	case Error:
+		levelStr = "ERROR"
+	case Fatal:
+		levelStr = "FATAL"
+	default:
+		levelStr = "?"
+	}
+	log.Printf("[%s] %s\n", levelStr, msg)
 }
 
 func healthCheck() {
@@ -58,10 +82,10 @@ func getServer() (string, error) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Received request from %s: %s\n", r.RemoteAddr, r.RequestURI)
+	logWrapper(Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
 	serverAddr, serverErr := getServer()
 	if serverErr != nil {
-		log.Printf("ERROR: %s, request not fulfilled\n", serverErr.Error())
+		logWrapper(Error, fmt.Sprintf("%s, request not fulfilled", serverErr.Error()))
 		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -77,7 +101,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	log.Printf("Forwarded request to %s\n", serverAddr)
+	logWrapper(Info, fmt.Sprintf("Forwarded request to %s\n", serverAddr))
 
 	// Copy the response back to the client
 	for key, values := range resp.Header {
@@ -85,7 +109,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(key, value)
 		}
 	}
-	log.Printf("Responded to %s\n", r.RemoteAddr)
+	logWrapper(Info, fmt.Sprintf("Responded to %s\n", r.RemoteAddr))
 	io.Copy(w, resp.Body)
 }
 
