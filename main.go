@@ -16,16 +16,18 @@ const (
 	Fatal = 3
 )
 
-var serverMutex sync.Mutex
-
-type ServerBackend struct {
+type Server struct {
 	Url     string
 	Healthy bool
 }
 
+// To ensure thread safety
+var serverMutex sync.Mutex
+
+// currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0
 
-var servers = []ServerBackend{
+var servers = []Server{
 	// TODO add configuration instead of hardcoding this
 	{Url: "http://localhost:8081", Healthy: true},
 	{Url: "http://localhost:8082", Healthy: true},
