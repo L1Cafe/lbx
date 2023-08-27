@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-
-	"gopkg.in/yaml.v2"
+	"github.com/L1Cafe/lbx/config"
 )
 
 const (
@@ -18,16 +16,6 @@ const (
 	Error = 2
 	Fatal = 3
 )
-
-type ConfigParsed struct {
-	Servers       []Server      `yaml: "servers"`
-	RefreshPeriod time.Duration `yaml: "refresh_period"`
-}
-
-type ConfigRaw struct {
-	Servers       []string      `yaml: "servers"`
-	RefreshPeriod time.Duration `yaml: "refresh_period"`
-}
 
 type Server struct {
 	Url     string
@@ -41,24 +29,6 @@ var servers []Server
 
 // currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0
-
-func loadConfig(file string) (*ConfigParsed, error) {
-	var configRaw ConfigRaw
-	var configParsed ConfigParsed
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	err = yaml.Unmarshal(data, &configRaw)
-	if err != nil {
-		return nil, err
-	}
-	for _, s := range configRaw.Servers {
-		configParsed.Servers = append(configParsed.Servers, Server{Url: s, Healthy: true})
-	}
-	configParsed.RefreshPeriod = configRaw.RefreshPeriod
-	return &configParsed, nil
-}
 
 func logWrapper(level int, msg string) {
 	var levelStr string // TODO configurable logging output

@@ -1,4 +1,14 @@
-servers:
-  - "http://localhost:8081"
-  - "http://localhost:8082"
-refresh_period: 10s  # 10 seconds
+global:
+  listening_port: 8080
+  log_level: 0
+
+sites:
+  site1:
+    servers:
+      - "http://localhost:8081"
+      - "http://localhost:8082"
+    refresh_period: 10s
+  site2:
+    servers:
+      - "http://localhost:8083"
+    refresh_period: 10s
