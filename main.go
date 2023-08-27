@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	"github.com/L1Cafe/lbx/config"
 )
 
@@ -17,15 +18,10 @@ const (
 	Fatal = 3
 )
 
-type Server struct {
-	Url     string
-	Healthy bool
-}
-
 // To ensure thread safety
 var serverMutex sync.Mutex
 
-var servers []Server
+var servers []config.Server
 
 // currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0
@@ -119,12 +115,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	config, err := loadConfig("config.yaml")
+	c, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		logWrapper(Fatal, fmt.Sprintf("Error loading config: %s", err.Error()))
 	}
-	go healthCheck(config.RefreshPeriod)
-	servers = config.Servers
+	configString, configErr := config.StringConfig(*c)
+	if configErr != nil {
+		logWrapper(Fatal, fmt.Sprintf("Error parsing config: %s", configErr.Error()))
+	} else {
+		logWrapper(Info, fmt.Sprintf("Loaded config:\n%s", configString))
+	}
+	go healthCheck(c.Sites["default"].RefreshPeriod)
+	servers = c.Sites["default"].Servers
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":8080", nil)
 }

@@ -12,14 +12,30 @@ type Server struct {
 	Healthy bool
 }
 
-type ConfigParsed struct {
-	Servers       []Server      `yaml:"servers"`
+type GlobalConfig struct {
+	ListeningPort int `yaml:"listening_port"`
+	LogLevel      int `yaml:"log_level"`
+}
+
+type SiteConfigRaw struct {
+	Servers       []string      `yaml:"servers"`
 	RefreshPeriod time.Duration `yaml:"refresh_period"`
 }
 
+type SiteConfigParsed struct {
+	Servers       []Server
+	RefreshPeriod time.Duration
+}
+
+type ConfigParsed struct {
+	ListeningPort int
+	LogLevel      int
+	Sites         map[string]SiteConfigParsed
+}
+
 type ConfigRaw struct {
-	Servers       []string      `yaml:"servers"`
-	RefreshPeriod time.Duration `yaml:"refresh_period"`
+	Global GlobalConfig             `yaml:"global"`
+	Sites  map[string]SiteConfigRaw `yaml:"sites"`
 }
 
 func LoadConfig(file string) (*ConfigParsed, error) {
@@ -33,9 +49,26 @@ func LoadConfig(file string) (*ConfigParsed, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, s := range configRaw.Servers {
-		configParsed.Servers = append(configParsed.Servers, Server{Url: s, Healthy: true})
+
+	// Config parsing
+	configParsed.Sites = make(map[string]SiteConfigParsed)
+	for siteKey, siteValue := range configRaw.Sites {
+		var parsedSite SiteConfigParsed
+		parsedSite.RefreshPeriod = siteValue.RefreshPeriod
+		for _, server := range siteValue.Servers {
+			parsedSite.Servers = append(parsedSite.Servers, Server{Url: server, Healthy: true})
+		}
+		configParsed.Sites[siteKey] = parsedSite
 	}
-	configParsed.RefreshPeriod = configRaw.RefreshPeriod
+	configParsed.LogLevel = configRaw.Global.LogLevel
+	configParsed.ListeningPort = configRaw.Global.ListeningPort
 	return &configParsed, nil
+}
+
+func StringConfig(c ConfigParsed) (string, error) {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
