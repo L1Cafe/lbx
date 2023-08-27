@@ -24,7 +24,7 @@ var serverMutex sync.Mutex
 var servers []config.Server
 
 // currentServerIndex is the index of the server we're currently using
-var currentServerIndex int = 0
+var currentServerIndex = 0
 
 func logWrapper(level int, msg string) {
 	var levelStr string // TODO configurable logging output
