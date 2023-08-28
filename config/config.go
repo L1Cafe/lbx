@@ -41,7 +41,7 @@ type SiteConfigParsed struct {
 
 // ParsedConfig is the actual configuration that the application uses
 type ParsedConfig struct {
-	ListeningPort int
+	ListeningPort uint16
 	LogLevel      int
 	Sites         map[string]SiteConfigParsed
 }
@@ -80,7 +80,7 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 			parsedSite.Domain = siteValue.Domain
 			parsedSite.Path = siteValue.Path
 			parsedPort, err := strconv.Atoi(siteValue.Port)
-			if err == nil {
+			if err != nil {
 				return nil, err
 			}
 			if parsedPort < 1 || parsedPort > 65535 {
@@ -91,7 +91,7 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 		pConfig.Sites[siteName] = parsedSite
 	}
 	pConfig.LogLevel = rConfig.Global.LogLevel
-	pConfig.ListeningPort = rConfig.Global.ListeningPort
+	pConfig.ListeningPort = uint16(rConfig.Global.ListeningPort)
 	return &pConfig, nil
 }
 
