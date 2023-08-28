@@ -12,3 +12,6 @@ sites:
     servers:
       - "http://localhost:8083"
     refresh_period: 10s
+    port: 5000
+    domain: localhost
+    path: "/folder"

@@ -31,6 +31,7 @@ type SiteRawConfig struct {
 }
 
 type SiteConfigParsed struct {
+	// TODO this needs a mutex for thread safety when serving several sites
 	Servers       []Server
 	RefreshPeriod time.Duration
 	Domain        string
@@ -71,16 +72,22 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 			parsedSite.Servers = append(parsedSite.Servers, Server{Url: server, Healthy: true})
 		}
 		parsedSite.RefreshPeriod = siteValue.RefreshPeriod
-		parsedSite.Domain = siteValue.Domain
-		parsedSite.Path = siteValue.Path
-		parsedPort, err := strconv.Atoi(siteValue.Port)
-		if err == nil {
-			return nil, err
+		if siteName == "default" {
+			parsedSite.Domain = "default"
+			parsedSite.Path = "/"
+			parsedSite.Port = uint16(rConfig.Global.ListeningPort)
+		} else {
+			parsedSite.Domain = siteValue.Domain
+			parsedSite.Path = siteValue.Path
+			parsedPort, err := strconv.Atoi(siteValue.Port)
+			if err == nil {
+				return nil, err
+			}
+			if parsedPort < 1 || parsedPort > 65535 {
+				return nil, errors.New("port number is out of range")
+			}
+			parsedSite.Port = uint16(parsedPort)
 		}
-		if parsedPort < 1 || parsedPort > 65535 {
-			return nil, errors.New("port number is out of range")
-		}
-		parsedSite.Port = uint16(parsedPort)
 		pConfig.Sites[siteName] = parsedSite
 	}
 	pConfig.LogLevel = rConfig.Global.LogLevel
