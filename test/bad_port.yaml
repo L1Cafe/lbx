@@ -1,0 +1,8 @@
+global:
+  listening_port: 8080
+  log_level: 0
+sites:
+  bad_port:
+    servers:
+      - "http://localhost:8380"
+    port: 999999999999

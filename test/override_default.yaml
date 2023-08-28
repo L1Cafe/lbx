@@ -1,0 +1,12 @@
+global:
+  listening_port: 8080
+  log_level: 0
+sites:
+  default:
+    servers:
+      - "http://localhost:8081"
+      - "http://localhost:8082"
+    refresh_period: 10s
+    domain: "example.com"
+    path: "/mypath"
+    port: 1234

@@ -2,8 +2,10 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
-	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -27,11 +29,12 @@ type SiteRawConfig struct {
 	// Path is what comes after the FQDN, "/" by default
 	Path string `yaml:"path"`
 	// Port is the same as the global listening port by default
-	Port string `yaml:"port"`
+	Port int `yaml:"port"`
 }
 
-type SiteConfigParsed struct {
+type SiteParsedConfig struct {
 	// TODO this needs a mutex for thread safety when serving several sites
+	Mutex         *sync.Mutex
 	Servers       []Server
 	RefreshPeriod time.Duration
 	Domain        string
@@ -43,7 +46,7 @@ type SiteConfigParsed struct {
 type ParsedConfig struct {
 	ListeningPort uint16
 	LogLevel      int
-	Sites         map[string]SiteConfigParsed
+	Sites         map[string]SiteParsedConfig
 }
 
 // RawConfig is the struct that matches the configuration file
@@ -65,33 +68,68 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 	}
 
 	// Config parsing
-	pConfig.Sites = make(map[string]SiteConfigParsed)
+	pConfig.LogLevel = rConfig.Global.LogLevel
+	globalPort := rConfig.Global.ListeningPort
+	if globalPort < 1 || globalPort > 65535 {
+		return nil, errors.New(fmt.Sprintf("invalid global port number %d", globalPort))
+	}
+	pConfig.ListeningPort = uint16(rConfig.Global.ListeningPort)
+	pConfig.Sites = make(map[string]SiteParsedConfig)
 	for siteName, siteValue := range rConfig.Sites {
-		var parsedSite SiteConfigParsed
+		var parsedSite SiteParsedConfig
+		parsedSite.Mutex = new(sync.Mutex)
 		for _, server := range siteValue.Servers {
 			parsedSite.Servers = append(parsedSite.Servers, Server{Url: server, Healthy: true})
 		}
+
 		parsedSite.RefreshPeriod = siteValue.RefreshPeriod
 		if siteName == "default" {
-			parsedSite.Domain = "default"
+			parsedSite.Domain = ""
 			parsedSite.Path = "/"
 			parsedSite.Port = uint16(rConfig.Global.ListeningPort)
 		} else {
-			parsedSite.Domain = siteValue.Domain
+			//sitePort, err := strconv.Atoi(siteValue.Port)
+			//if err != nil {
+			//return nil, err
+			//
+			if siteValue.Path == "" {
+				siteValue.Path = "/"
+			}
+			if siteValue.Domain == "" {
+				siteValue.Domain = ""
+			}
+			if siteValue.Port == 0 {
+				siteValue.Port = int(pConfig.ListeningPort)
+			}
+			if siteValue.RefreshPeriod == 0 {
+				siteValue.RefreshPeriod = 10 * time.Second
+			}
+			minRefreshPeriod, _ := time.ParseDuration("1s")
+			if siteValue.RefreshPeriod < minRefreshPeriod {
+				// TODO turn this into a Warn message
+				return nil, errors.New(fmt.Sprintf("refresh period %v for site %s cannot be less than %v", siteValue.RefreshPeriod, siteName, minRefreshPeriod))
+			}
+			if !strings.HasPrefix(siteValue.Path, "/") {
+				// TODO separate logging features
+				// TODO add Warn message here for incorrect path prefix
+				siteValue.Path = "/" + siteValue.Path
+			}
 			parsedSite.Path = siteValue.Path
-			parsedPort, err := strconv.Atoi(siteValue.Port)
-			if err != nil {
-				return nil, err
+			parsedSite.Domain = siteValue.Domain
+			sitePort := siteValue.Port
+			if sitePort == 0 {
+				// TODO add Info message for port override with global
+				sitePort = int(pConfig.ListeningPort)
 			}
-			if parsedPort < 1 || parsedPort > 65535 {
-				return nil, errors.New("port number is out of range")
+			if sitePort < 1 || sitePort > 65535 {
+				return nil, errors.New(fmt.Sprintf("port number %d is out of range for site %s", sitePort, siteName))
 			}
-			parsedSite.Port = uint16(parsedPort)
+			parsedSite.Port = uint16(sitePort)
+			parsedSite.RefreshPeriod = siteValue.RefreshPeriod
 		}
 		pConfig.Sites[siteName] = parsedSite
 	}
-	pConfig.LogLevel = rConfig.Global.LogLevel
-	pConfig.ListeningPort = uint16(rConfig.Global.ListeningPort)
+
 	return &pConfig, nil
 }
 

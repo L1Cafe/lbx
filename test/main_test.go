@@ -20,9 +20,9 @@ func TestEndToEnd(t *testing.T) {
 	defer ts.Close()
 
 	// Creating a configuration
-	var RawConfig config.RawConfig
+	var rawConfig config.RawConfig
 	var siteRawConfig config.SiteRawConfig
-	var GlobalRawConfig config.GlobalRawConfig
+	var globalRawConfig config.GlobalRawConfig
 
 	siteRawConfig = config.SiteRawConfig{
 		Servers:       []string{ts.URL},
@@ -30,14 +30,10 @@ func TestEndToEnd(t *testing.T) {
 	}
 	sites := make(map[string]config.SiteRawConfig)
 	sites["default"] = siteRawConfig
-	GlobalRawConfig = config.GlobalRawConfig{
+	globalRawConfig = config.GlobalRawConfig{
 		ListeningPort: 8080,
 		LogLevel:      0,
 	}
-	RawConfig = config.RawConfig{Global: GlobalRawConfig, Sites: sites}
-
-	// TODO need to start a process with the appropriate settings
-
-	fmt.Printf("%v", RawConfig)
-
+	rawConfig = config.RawConfig{Global: globalRawConfig, Sites: sites}
+	_ = rawConfig // FIXME ignoring unused variable for now
 }

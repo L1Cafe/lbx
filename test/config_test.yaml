@@ -1,14 +1,31 @@
 global:
   listening_port: 8080
   log_level: 0
-
 sites:
   default:
     servers:
       - "http://localhost:8081"
       - "http://localhost:8082"
     refresh_period: 10s
-  site2:
+  site_test:
     servers:
       - "http://localhost:8083"
-    refresh_period: 10s
+    refresh_period: 60s
+    domain: localhost
+    path: "/folder"
+    port: 5000
+  default_test:
+    servers:
+      - "http://localhost:8280"
+  domain_test:
+    servers:
+      - "http://localhost:8479"
+    domain: "example.com"
+  path_test:
+    servers:
+      - "http://localhost:5305"
+    path: "/examplepath"
+  port_test:
+    servers:
+      - "http://localhost:8380"
+    port: 6789

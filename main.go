@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/L1Cafe/lbx/config"
@@ -19,16 +18,13 @@ const (
 	Fatal = 3
 )
 
-// To ensure thread safety
-var serverMutex sync.Mutex // TODO this needs to be per-site not global
-
 var appConfig *config.ParsedConfig
 
 // currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0 // TODO this either needs to go into the site struct or make a map
 
 func logWrapper(level int, msg string) { // TODO make this a variadic function with: client, server, site, response code
-	var levelStr string // TODO configurable logging output
+	var levelStr string
 	fatal := false
 	switch level {
 	case Info:
@@ -46,12 +42,15 @@ func logWrapper(level int, msg string) { // TODO make this a variadic function w
 	if fatal {
 		log.Fatalf("[%s] %s\n", levelStr, msg)
 	} else {
-		log.Printf("[%s] %s\n", levelStr, msg)
+		if level <= appConfig.LogLevel {
+			log.Printf("[%s] %s\n", levelStr, msg)
+		}
 	}
 }
 
 func healthCheck(t time.Duration, key string) {
 	servers := appConfig.Sites[key].Servers
+	serverMutex := appConfig.Sites[key].Mutex
 	for {
 		for i, server := range servers {
 			resp, err := http.Head(server.Url)
@@ -66,13 +65,14 @@ func healthCheck(t time.Duration, key string) {
 				serverMutex.Unlock()
 			}
 		}
-		time.Sleep(t) // TODO configure this timer
+		time.Sleep(appConfig.Sites[key].RefreshPeriod)
 	}
 }
 
 func getServer(key string) (string, error) {
 	servers := appConfig.Sites[key].Servers
 	// TODO Needs to be reworked to account for multiple sites
+	serverMutex := appConfig.Sites[key].Mutex
 	serverMutex.Lock()
 	defer serverMutex.Unlock()
 	for i := 0; i < len(servers); i++ {
