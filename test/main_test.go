@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/L1Cafe/lbx/config"
-	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/L1Cafe/lbx/config"
+	"github.com/google/uuid"
 )
 
 func TestEndToEnd(t *testing.T) {
@@ -19,24 +20,24 @@ func TestEndToEnd(t *testing.T) {
 	defer ts.Close()
 
 	// Creating a configuration
-	var configRaw config.ConfigRaw
-	var siteConfigRaw config.SiteConfigRaw
-	var globalConfig config.GlobalConfig
+	var RawConfig config.RawConfig
+	var siteRawConfig config.SiteRawConfig
+	var GlobalRawConfig config.GlobalRawConfig
 
-	siteConfigRaw = config.SiteConfigRaw{
+	siteRawConfig = config.SiteRawConfig{
 		Servers:       []string{ts.URL},
 		RefreshPeriod: 10 * time.Second,
 	}
-	sites := make(map[string]config.SiteConfigRaw)
-	sites["default"] = siteConfigRaw
-	globalConfig = config.GlobalConfig{
+	sites := make(map[string]config.SiteRawConfig)
+	sites["default"] = siteRawConfig
+	GlobalRawConfig = config.GlobalRawConfig{
 		ListeningPort: 8080,
 		LogLevel:      0,
 	}
-	configRaw = config.ConfigRaw{Global: globalConfig, Sites: sites}
+	RawConfig = config.RawConfig{Global: GlobalRawConfig, Sites: sites}
 
 	// TODO need to start a process with the appropriate settings
 
-	fmt.Printf("%v", configRaw)
+	fmt.Printf("%v", RawConfig)
 
 }
