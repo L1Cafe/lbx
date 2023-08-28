@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/L1Cafe/lbx/log"
 	"io/ioutil"
 	"strings"
 	"sync"
@@ -45,7 +46,7 @@ type SiteParsedConfig struct {
 // ParsedConfig is the actual configuration that the application uses
 type ParsedConfig struct {
 	ListeningPort uint16
-	LogLevel      int
+	LogLevel      uint8
 	Sites         map[string]SiteParsedConfig
 }
 
@@ -68,7 +69,15 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 	}
 
 	// Config parsing
-	pConfig.LogLevel = rConfig.Global.LogLevel
+	parsedLogLevel := rConfig.Global.LogLevel
+	if parsedLogLevel < 0 {
+		log.Wrapper(log.Fatal, fmt.Sprintf("logging level cannot be negative: %d", parsedLogLevel))
+	}
+	if parsedLogLevel > 3 {
+		// Logging cannot be higher than 3 (Fatal)
+		parsedLogLevel = 3
+	}
+	pConfig.LogLevel = uint8(rConfig.Global.LogLevel)
 	globalPort := rConfig.Global.ListeningPort
 	if globalPort < 1 || globalPort > 65535 {
 		return nil, errors.New(fmt.Sprintf("invalid global port number %d", globalPort))
@@ -88,10 +97,6 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 			parsedSite.Path = "/"
 			parsedSite.Port = uint16(rConfig.Global.ListeningPort)
 		} else {
-			//sitePort, err := strconv.Atoi(siteValue.Port)
-			//if err != nil {
-			//return nil, err
-			//
 			if siteValue.Path == "" {
 				siteValue.Path = "/"
 			}

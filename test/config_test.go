@@ -11,8 +11,11 @@ import (
 
 func TestBadPort(t *testing.T) {
 	_, err := config.LoadConfig("bad_port.yaml")
-	if err == nil && !strings.Contains(err.Error(), "port number 999999999999 is out of range for site bad_port") {
+	if err == nil {
 		t.Errorf("Out of range port was accepted")
+	}
+	if !strings.Contains(err.Error(), "port number 999999999999 is out of range for site bad_port") {
+		t.Errorf("Unexpected error message: %s", err.Error())
 	}
 }
 
@@ -93,7 +96,7 @@ func TestReadConfig(t *testing.T) {
 	}
 	expectedConfig := config.ParsedConfig{
 		ListeningPort: uint16(8080),
-		LogLevel:      0,
+		LogLevel:      1,
 		Sites: map[string]config.SiteParsedConfig{
 			"default":      defaultSite,
 			"site_test":    siteTest,

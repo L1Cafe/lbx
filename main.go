@@ -2,51 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/L1Cafe/lbx/log"
 	"io"
-	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/L1Cafe/lbx/config"
-)
-
-const (
-	Info  = 0
-	Warn  = 1
-	Error = 2
-	Fatal = 3
 )
 
 var appConfig *config.ParsedConfig
 
 // currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0 // TODO this either needs to go into the site struct or make a map
-
-func logWrapper(level int, msg string) { // TODO make this a variadic function with: client, server, site, response code
-	var levelStr string
-	fatal := false
-	switch level {
-	case Info:
-		levelStr = "INFO "
-	case Warn:
-		levelStr = "WARN "
-	case Error:
-		levelStr = "ERROR"
-	case Fatal:
-		levelStr = "FATAL"
-		fatal = true
-	default:
-		levelStr = strconv.Itoa(level)
-	}
-	if fatal {
-		log.Fatalf("[%s] %s\n", levelStr, msg)
-	} else {
-		if level <= appConfig.LogLevel {
-			log.Printf("[%s] %s\n", levelStr, msg)
-		}
-	}
-}
 
 func healthCheck(t time.Duration, key string) {
 	servers := appConfig.Sites[key].Servers
@@ -83,14 +50,14 @@ func getServer(key string) (string, error) {
 			return currentServer.Url, nil
 		}
 	}
-	return "", fmt.Errorf("no healthy servers available")
+	return "", fmt.Errorf("no healthy servers available for site %s", key)
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	logWrapper(Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
+	log.Wrapper(Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
 	serverAddr, serverErr := getServer("default")
 	if serverErr != nil {
-		logWrapper(Error, fmt.Sprintf("%s, request not fulfilled", serverErr.Error()))
+		log.Wrapper(log.Error, fmt.Sprintf("%s, request not fulfilled", serverErr.Error()))
 		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -106,7 +73,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	logWrapper(Info, fmt.Sprintf("Forwarded request to %s", serverAddr))
+	log.Wrapper(log.Info, fmt.Sprintf("Forwarded request to %s", serverAddr))
 
 	// Copy the response back to the client
 	for key, values := range resp.Header {
@@ -116,22 +83,23 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = io.Copy(w, resp.Body)
 	if err != nil {
-		logWrapper(Fatal, fmt.Sprintf("Error attempting to respond to %s", r.RemoteAddr))
+		log.Wrapper(log.Fatal, fmt.Sprintf("Error attempting to respond to %s", r.RemoteAddr))
 	}
-	logWrapper(Info, fmt.Sprintf("Responded to %s", r.RemoteAddr))
+	log.Wrapper(log.Info, fmt.Sprintf("Responded to %s", r.RemoteAddr))
 }
 
 func main() {
 	c, err := config.LoadConfig("config.yaml")
 	if err != nil {
-		logWrapper(Fatal, fmt.Sprintf("Error loading config: %s", err.Error()))
+		log.Wrapper(log.Fatal, fmt.Sprintf("Error loading config: %s", err.Error()))
 	}
 	appConfig = c
+	log.Init(c.LogLevel)
 	// TODO need to make a wrapper to spawn one goroutine for each site
 	go healthCheck(c.Sites["default"].RefreshPeriod, "default")
 	http.HandleFunc("/", handler)
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
-		logWrapper(Fatal, fmt.Sprintf("Error starting web server: %s", err.Error()))
+		log.Wrapper(log.Fatal, fmt.Sprintf("Error starting web server: %s", err.Error()))
 	}
 }

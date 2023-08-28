@@ -1,6 +1,6 @@
 global:
   listening_port: 8080
-  log_level: 0
+  log_level: 2
 sites:
   default:
     servers:
