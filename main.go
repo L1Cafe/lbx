@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,14 +20,14 @@ const (
 )
 
 // To ensure thread safety
-var serverMutex sync.Mutex
+var serverMutex sync.Mutex // TODO this needs to be per-site not global
 
-var servers []config.Server
+var appConfig *config.ParsedConfig
 
 // currentServerIndex is the index of the server we're currently using
-var currentServerIndex = 0
+var currentServerIndex int = 0 // TODO this either needs to go into the site struct or make a map
 
-func logWrapper(level int, msg string) {
+func logWrapper(level int, msg string) { // TODO make this a variadic function with: client, server, site, response code
 	var levelStr string // TODO configurable logging output
 	fatal := false
 	switch level {
@@ -40,7 +41,7 @@ func logWrapper(level int, msg string) {
 		levelStr = "FATAL"
 		fatal = true
 	default:
-		levelStr = "?"
+		levelStr = strconv.Itoa(level)
 	}
 	if fatal {
 		log.Fatalf("[%s] %s\n", levelStr, msg)
@@ -49,7 +50,8 @@ func logWrapper(level int, msg string) {
 	}
 }
 
-func healthCheck(t time.Duration) {
+func healthCheck(t time.Duration, key string) {
+	servers := appConfig.Sites[key].Servers
 	for {
 		for i, server := range servers {
 			resp, err := http.Head(server.Url)
@@ -68,7 +70,9 @@ func healthCheck(t time.Duration) {
 	}
 }
 
-func getServer() (string, error) {
+func getServer(key string) (string, error) {
+	servers := appConfig.Sites[key].Servers
+	// TODO Needs to be reworked to account for multiple sites
 	serverMutex.Lock()
 	defer serverMutex.Unlock()
 	for i := 0; i < len(servers); i++ {
@@ -84,7 +88,7 @@ func getServer() (string, error) {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	logWrapper(Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
-	serverAddr, serverErr := getServer()
+	serverAddr, serverErr := getServer("default")
 	if serverErr != nil {
 		logWrapper(Error, fmt.Sprintf("%s, request not fulfilled", serverErr.Error()))
 		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
@@ -102,7 +106,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	logWrapper(Info, fmt.Sprintf("Forwarded request to %s\n", serverAddr))
+	logWrapper(Info, fmt.Sprintf("Forwarded request to %s", serverAddr))
 
 	// Copy the response back to the client
 	for key, values := range resp.Header {
@@ -110,8 +114,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(key, value)
 		}
 	}
-	logWrapper(Info, fmt.Sprintf("Responded to %s\n", r.RemoteAddr))
-	io.Copy(w, resp.Body)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		logWrapper(Fatal, fmt.Sprintf("Error attempting to respond to %s", r.RemoteAddr))
+	}
+	logWrapper(Info, fmt.Sprintf("Responded to %s", r.RemoteAddr))
 }
 
 func main() {
@@ -119,14 +126,12 @@ func main() {
 	if err != nil {
 		logWrapper(Fatal, fmt.Sprintf("Error loading config: %s", err.Error()))
 	}
-	configString, configErr := config.StringConfig(*c)
-	if configErr != nil {
-		logWrapper(Fatal, fmt.Sprintf("Error parsing config: %s", configErr.Error()))
-	} else {
-		logWrapper(Info, fmt.Sprintf("Loaded config:\n%s", configString))
-	}
-	go healthCheck(c.Sites["default"].RefreshPeriod)
-	servers = c.Sites["default"].Servers
+	appConfig = c
+	// TODO need to make a wrapper to spawn one goroutine for each site
+	go healthCheck(c.Sites["default"].RefreshPeriod, "default")
 	http.HandleFunc("/", handler)
-	http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil {
+		logWrapper(Fatal, fmt.Sprintf("Error starting web server: %s", err.Error()))
+	}
 }
