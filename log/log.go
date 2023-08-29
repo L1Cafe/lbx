@@ -8,23 +8,24 @@ import (
 var logLevel uint8
 
 const (
-	Info  = uint8(0)
-	Warn  = uint8(1)
-	Error = uint8(2)
-	Fatal = uint8(3)
+	Info  = uint8(1)
+	Warn  = uint8(2)
+	Error = uint8(3)
+	Fatal = uint8(4)
 )
 
 func Init(l uint8) {
-	if l < 3 {
+	if l < 4 {
 		logLevel = l
 	} else {
-		logLevel = 3
+		logLevel = 4
 	}
 }
 
 func Wrapper(level uint8, msg string) { // TODO make this a variadic function with: client, server, site, response code
 	if logLevel == 0 {
-		Init(3)
+		// TODO check that when not setting the log level, the application starts with level 4
+		Init(4)
 	}
 	var levelStr string
 	fatal := false
