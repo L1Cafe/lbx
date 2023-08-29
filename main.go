@@ -15,7 +15,7 @@ var appConfig *config.ParsedConfig
 // currentServerIndex is the index of the server we're currently using
 var currentServerIndex int = 0 // TODO this either needs to go into the site struct or make a map
 
-func healthCheck(t time.Duration, key string) {
+func healthCheck(key string) {
 	servers := appConfig.Sites[key].Servers
 	serverMutex := appConfig.Sites[key].Mutex
 	for {
@@ -54,7 +54,7 @@ func getServer(key string) (string, error) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Wrapper(Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
+	log.Wrapper(log.Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
 	serverAddr, serverErr := getServer("default")
 	if serverErr != nil {
 		log.Wrapper(log.Error, fmt.Sprintf("%s, request not fulfilled", serverErr.Error()))
@@ -96,7 +96,7 @@ func main() {
 	appConfig = c
 	log.Init(c.LogLevel)
 	// TODO need to make a wrapper to spawn one goroutine for each site
-	go healthCheck(c.Sites["default"].RefreshPeriod, "default")
+	go healthCheck("default")
 	http.HandleFunc("/", handler)
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
