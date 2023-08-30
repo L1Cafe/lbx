@@ -3,8 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/L1Cafe/lbx/log"
 	"io/ioutil"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -12,19 +12,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Server struct {
-	Url     string
-	Healthy bool
-}
-
 type GlobalRawConfig struct {
 	ListeningPort int `yaml:"listening_port"`
 	LogLevel      int `yaml:"log_level"`
 }
 
 type SiteRawConfig struct {
-	Servers       []string      `yaml:"servers"`
-	RefreshPeriod time.Duration `yaml:"refresh_period"`
+	Endpoints   []string      `yaml:"endpoints"`
+	CheckPeriod time.Duration `yaml:"check_period"`
 	// Domain is the FQDN. disabled by default
 	Domain string `yaml:"domain"`
 	// Path is what comes after the FQDN, "/" by default
@@ -36,7 +31,7 @@ type SiteRawConfig struct {
 type SiteParsedConfig struct {
 	// TODO this needs a mutex for thread safety when serving several sites
 	Mutex         *sync.Mutex
-	Servers       []Server
+	Endpoints     []url.URL
 	RefreshPeriod time.Duration
 	Domain        string
 	Path          string
@@ -87,11 +82,20 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 	for siteName, siteValue := range rConfig.Sites {
 		var parsedSite SiteParsedConfig
 		parsedSite.Mutex = new(sync.Mutex)
-		for _, server := range siteValue.Servers {
-			parsedSite.Servers = append(parsedSite.Servers, Server{Url: server, Healthy: true})
+		for _, endpoint := range siteValue.Endpoints {
+			u, err := url.Parse(endpoint)
+			if err != nil {
+				// TODO test this
+				return nil, errors.New(fmt.Sprintf("%s is not a valid endpoint: %s", u, err.Error()))
+			} else if err == nil && u.Scheme == "" && u.Host == "" {
+				return nil, errors.New(fmt.Sprintf("%s is not a valid endpoint: endpoints must have a scheme and a host", u))
+			} else if u.Scheme != "http" || u.Scheme != "https" {
+				return nil, errors.New(fmt.Sprintf("%s is not a valid endpoint: lbx only supports HTTP and HTTPS endpoints", u))
+			}
+			parsedSite.Endpoints = append(parsedSite.Endpoints, *u)
 		}
 
-		parsedSite.RefreshPeriod = siteValue.RefreshPeriod
+		parsedSite.RefreshPeriod = siteValue.CheckPeriod
 		if siteName == "default" {
 			parsedSite.Domain = ""
 			parsedSite.Path = "/"
@@ -106,13 +110,13 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 			if siteValue.Port == 0 {
 				siteValue.Port = int(pConfig.ListeningPort)
 			}
-			if siteValue.RefreshPeriod == 0 {
-				siteValue.RefreshPeriod = 10 * time.Second
+			if siteValue.CheckPeriod == 0 {
+				siteValue.CheckPeriod = 10 * time.Second
 			}
 			minRefreshPeriod, _ := time.ParseDuration("1s")
-			if siteValue.RefreshPeriod < minRefreshPeriod {
+			if siteValue.CheckPeriod < minRefreshPeriod {
 				// TODO turn this into a Warn message
-				return nil, errors.New(fmt.Sprintf("refresh period %v for site %s cannot be less than %v", siteValue.RefreshPeriod, siteName, minRefreshPeriod))
+				return nil, errors.New(fmt.Sprintf("refresh period %v for site %s cannot be less than %v", siteValue.CheckPeriod, siteName, minRefreshPeriod))
 			}
 			if !strings.HasPrefix(siteValue.Path, "/") {
 				// TODO separate logging features
@@ -130,7 +134,7 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 				return nil, errors.New(fmt.Sprintf("port number %d is out of range for site %s", sitePort, siteName))
 			}
 			parsedSite.Port = uint16(sitePort)
-			parsedSite.RefreshPeriod = siteValue.RefreshPeriod
+			parsedSite.RefreshPeriod = siteValue.CheckPeriod
 		}
 		pConfig.Sites[siteName] = parsedSite
 	}

@@ -1,4 +1,4 @@
-package server
+package site
 
 import "github.com/L1Cafe/lbx/config"
 

@@ -6,11 +6,11 @@ sites:
     servers:
       - "http://localhost:8081"
       - "http://localhost:8082"
-    refresh_period: 10s
+    check_period: 10s
   site_test:
     servers:
       - "http://localhost:8083"
-    refresh_period: 60s
+    check_period: 60s
     domain: localhost
     path: "/folder"
     port: 5000
