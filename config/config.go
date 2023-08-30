@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -30,7 +29,6 @@ type SiteRawConfig struct {
 
 type SiteParsedConfig struct {
 	// TODO this needs a mutex for thread safety when serving several sites
-	Mutex         *sync.Mutex
 	Endpoints     []url.URL
 	RefreshPeriod time.Duration
 	Domain        string
@@ -81,7 +79,6 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 	pConfig.Sites = make(map[string]SiteParsedConfig)
 	for siteName, siteValue := range rConfig.Sites {
 		var parsedSite SiteParsedConfig
-		parsedSite.Mutex = new(sync.Mutex)
 		for _, endpoint := range siteValue.Endpoints {
 			u, err := url.Parse(endpoint)
 			if err != nil {
@@ -89,7 +86,7 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 				return nil, errors.New(fmt.Sprintf("%s is not a valid endpoint: %s", u, err.Error()))
 			} else if err == nil && u.Scheme == "" && u.Host == "" {
 				return nil, errors.New(fmt.Sprintf("%s is not a valid endpoint: endpoints must have a scheme and a host", u))
-			} else if u.Scheme != "http" || u.Scheme != "https" {
+			} else if u.Scheme != "http" && u.Scheme != "https" {
 				return nil, errors.New(fmt.Sprintf("%s is not a valid endpoint: lbx only supports HTTP and HTTPS endpoints", u))
 			}
 			parsedSite.Endpoints = append(parsedSite.Endpoints, *u)

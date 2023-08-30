@@ -1,0 +1,7 @@
+global:
+  listening_port: 8080
+  log_level: 1
+sites:
+  default:
+    servers:
+      - "/this/is/an/invalid/endpoint/https://invalid.com//.com;!"

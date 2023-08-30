@@ -25,7 +25,7 @@ func TestEndToEnd(t *testing.T) {
 	var GlobalRawConfig config.GlobalRawConfig
 
 	siteRawConfig = config.SiteRawConfig{
-		Servers:     []string{ts.URL},
+		//Servers:     []string{ts.URL},
 		CheckPeriod: 10 * time.Second,
 	}
 	sites := make(map[string]config.SiteRawConfig)

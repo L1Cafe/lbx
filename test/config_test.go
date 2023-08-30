@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/L1Cafe/lbx/config"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,6 +18,12 @@ func TestBadPort(t *testing.T) {
 	if !strings.Contains(err.Error(), "port number 999999999999 is out of range for site bad_port") {
 		t.Errorf("Unexpected error message: %s", err.Error())
 	}
+}
+
+func testInvalidEndpoint(t *testing.T) {
+	invalidEndpoint, err := config.LoadConfig("invalid_endpoint.yaml")
+	fmt.Println(invalidEndpoint)
+	fmt.Println(err.Error())
 }
 
 func TestOverrideDefault(t *testing.T) {
@@ -37,58 +44,53 @@ func TestReadConfig(t *testing.T) {
 	if err != nil {
 		t.Errorf("Loading config not successful: %s", err.Error())
 	}
-	d1 := config.Server{Url: "http://localhost:8081", Healthy: true}
-	d2 := config.Server{Url: "http://localhost:8082", Healthy: true}
+
+	d1, _ := url.Parse("http://localhost:8081")
+	d2, _ := url.Parse("http://localhost:8081")
 	dDuration, _ := time.ParseDuration("10s")
 	defaultSite := config.SiteParsedConfig{
-		Mutex:         c.Sites["default"].Mutex,
-		Servers:       []config.Server{d1, d2},
+		Endpoints:     []url.URL{*d1, *d2},
 		RefreshPeriod: dDuration,
 		Domain:        "",
 		Path:          "/",
 		Port:          8080,
 	}
-	s1 := config.Server{Url: "http://localhost:8083", Healthy: true}
+	s1u, _ := url.Parse("http://localhost:8083")
 	s1Duration, _ := time.ParseDuration("60s")
 	siteTest := config.SiteParsedConfig{
-		Mutex:         c.Sites["site_test"].Mutex,
-		Servers:       []config.Server{s1},
+		Endpoints:     []url.URL{*s1u},
 		RefreshPeriod: s1Duration,
 		Domain:        "localhost",
 		Path:          "/folder",
 		Port:          5000,
 	}
-	ds := config.Server{Url: "http://localhost:8280", Healthy: true}
+	du, _ := url.Parse("http://localhost:8280")
 	defaultTest := config.SiteParsedConfig{
-		Mutex:         c.Sites["default_test"].Mutex,
-		Servers:       []config.Server{ds},
+		Endpoints:     []url.URL{*du},
 		RefreshPeriod: dDuration,
 		Domain:        "",
 		Path:          "/",
 		Port:          c.ListeningPort,
 	}
-	ps := config.Server{Url: "http://localhost:8380", Healthy: true}
+	pu, _ := url.Parse("http://localhost:8380")
 	portTest := config.SiteParsedConfig{
-		Mutex:         c.Sites["port_test"].Mutex,
-		Servers:       []config.Server{ps},
+		Endpoints:     []url.URL{*pu},
 		RefreshPeriod: dDuration,
 		Domain:        "",
 		Path:          "/",
 		Port:          6789,
 	}
-	paths := config.Server{Url: "http://localhost:5305", Healthy: true}
+	pau, _ := url.Parse("http://localhost:8380")
 	pathTest := config.SiteParsedConfig{
-		Mutex:         c.Sites["path_test"].Mutex,
-		Servers:       []config.Server{paths},
+		Endpoints:     []url.URL{*pau},
 		RefreshPeriod: dDuration,
 		Domain:        "",
 		Path:          "/examplepath",
 		Port:          c.ListeningPort,
 	}
-	doms := config.Server{Url: "http://localhost:8479", Healthy: true}
+	domu, _ := url.Parse("http://localhost:8479")
 	domainTest := config.SiteParsedConfig{
-		Mutex:         c.Sites["domain_test"].Mutex,
-		Servers:       []config.Server{doms},
+		Endpoints:     []url.URL{*domu},
 		RefreshPeriod: dDuration,
 		Domain:        "example.com",
 		Path:          "/",
