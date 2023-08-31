@@ -28,7 +28,6 @@ type SiteRawConfig struct {
 }
 
 type SiteParsedConfig struct {
-	// TODO this needs a mutex for thread safety when serving several sites
 	Endpoints     []url.URL
 	RefreshPeriod time.Duration
 	Domain        string

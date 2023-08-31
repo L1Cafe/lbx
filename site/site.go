@@ -1,7 +1,11 @@
 package site
 
 import (
+	"errors"
+	"fmt"
 	"github.com/L1Cafe/lbx/config"
+	"github.com/L1Cafe/lbx/log"
+	"math/rand"
 	"net/url"
 	"sync"
 	"time"
@@ -52,23 +56,58 @@ func Init(s *config.ParsedConfig) {
 	for k, v := range s.Sites {
 		// TODO assign as necessary
 		sites[k] = newSite(k, v.Endpoints, v.RefreshPeriod, v.Domain, v.Path, v.Port)
+		log.Wrapper(log.Info, fmt.Sprintf("Loaded configuration for site %s", k))
 	}
-	for k, _ := range sites {
+	for k := range sites {
 		go autoHealthCheck(k)
+		log.Wrapper(log.Info, fmt.Sprintf("Dispatched health checks for site %s", k))
 	}
 }
 
+// autoHealthCheck periodically checks the endpoints in the provided site name. It's ok for this function to not have
+// any validaton, because it's unexported.
 func autoHealthCheck(siteKey string) {
 	s := sites[siteKey]
 	for {
-		s.healthyEndpoints.mutex.RLock()
 		currentHealthyEndpoints := new([]url.URL)
-		// check health of every endpoint and make list of healthy endpoints
-		s.healthyEndpoints.mutex.RUnlock()
+		log.Wrapper(log.Info, fmt.Sprintf("Checking healthy endpoints for site %s", siteKey))
+		// TODO: check health of every endpoint and make list of healthy endpoints
+		for _, endpoint := range s.endpoints {
+			log.Wrapper(log.Info, fmt.Sprintf(
+				"Checking health status of endpoint %s for site %s", endpoint.String(), siteKey))
+			// TODO actually check endpoint
+		}
 		s.healthyEndpoints.mutex.Lock()
-		// swap list of healthy endpoints with the current one
+		// swap list of previously healthy endpoints with the list of currently healthy ones
 		s.healthyEndpoints.endpoints = currentHealthyEndpoints
 		s.healthyEndpoints.mutex.Unlock()
+		log.Wrapper(log.Info, fmt.Sprintf("Healthy endpoint list of site %s updated", siteKey))
 		time.Sleep(s.refreshPeriod)
 	}
+}
+
+// healthCheck is a manual endpoint check that is triggered when an endpoint misbehaves, and will evict the endpoint if
+// it's unhealthy
+func healthCheck(siteKey string, u url.URL) {
+	s := sites[siteKey]
+	endpointList := s.endpoints
+	for _, endpointUrl := range endpointList {
+		if endpointUrl == u {
+			// TODO check u
+			// If u healthy, make sure it's in the healthy list
+			// If u unhealthy, make a new list, lock the old healthy one for read, if it's there take it out, and then swap
+		}
+	}
+}
+
+func GetRandomEndpoint(siteKey string) (url.URL, error) {
+	s, ok := sites[siteKey]
+	if !ok {
+		return url.URL{}, errors.New(fmt.Sprintf("Site %s not found", siteKey))
+	}
+	// Choosing server at random, currently the only load balancing algorithm
+	s.healthyEndpoints.mutex.RLock()
+	defer s.healthyEndpoints.mutex.RUnlock()
+	index := rand.Intn(len(*s.healthyEndpoints.endpoints))
+	return (*s.healthyEndpoints.endpoints)[index], nil
 }

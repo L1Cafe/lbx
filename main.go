@@ -2,56 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/L1Cafe/lbx/config"
 	"github.com/L1Cafe/lbx/log"
 	"io"
 	"net/http"
-	"time"
-
-	"github.com/L1Cafe/lbx/config"
 )
 
 var appConfig *config.ParsedConfig
-
-// currentServerIndex is the index of the server we're currently using
-var currentServerIndex int = 0 // TODO this either needs to go into the site struct or make a map
-
-func healthCheck(key string) {
-	servers := appConfig.Sites[key].Servers
-	serverMutex := appConfig.Sites[key].Mutex
-	for {
-		for i, server := range servers {
-			resp, err := http.Head(server.Url)
-			if err != nil || resp.StatusCode != 200 {
-				// Mark as unhealthy
-				serverMutex.Lock()
-				servers[i].Healthy = false
-				serverMutex.Unlock()
-			} else {
-				serverMutex.Lock()
-				servers[i].Healthy = true
-				serverMutex.Unlock()
-			}
-		}
-		time.Sleep(appConfig.Sites[key].RefreshPeriod)
-	}
-}
-
-func getServer(key string) (string, error) {
-	servers := appConfig.Sites[key].Servers
-	// TODO Needs to be reworked to account for multiple sites
-	serverMutex := appConfig.Sites[key].Mutex
-	serverMutex.Lock()
-	defer serverMutex.Unlock()
-	for i := 0; i < len(servers); i++ {
-		currentServer := servers[currentServerIndex]
-		currentServerIndex = (currentServerIndex + 1) % len(servers)
-
-		if currentServer.Healthy {
-			return currentServer.Url, nil
-		}
-	}
-	return "", fmt.Errorf("no healthy servers available for site %s", key)
-}
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Wrapper(log.Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
