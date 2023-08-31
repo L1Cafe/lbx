@@ -54,6 +54,24 @@ func TestOverrideDefault(t *testing.T) {
 	}
 }
 
+func TestBadLogging(t *testing.T) {
+	_, err := config.LoadConfig("bad_logging.yaml")
+	if err == nil {
+		t.Error("Expected failure when trying to configure a negative log level")
+	}
+	if !strings.Contains(err.Error(), "cannot be negative") {
+		t.Errorf("Expected an error regarding a negative logging level, got %s", err.Error())
+	}
+	err = nil
+	c, err := config.LoadConfig("bad_logging1.yaml")
+	if err != nil {
+		t.Error("Expected success when trying to load a log level that is too high")
+	}
+	if c.LogLevel != 3 {
+		t.Errorf("Expected a logging level higher than 3 to be reset to the maximum of 3, got %d", c.LogLevel)
+	}
+}
+
 func TestInvalidYAML(t *testing.T) {
 	_, err := config.LoadConfig("/bin/false")
 	if err == nil {

@@ -70,7 +70,7 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 		// Logging level cannot be higher than 3 (Fatal)
 		parsedLogLevel = 3
 	}
-	pConfig.LogLevel = uint8(rConfig.Global.LogLevel)
+	pConfig.LogLevel = uint8(parsedLogLevel)
 	globalPort := rConfig.Global.ListeningPort
 	if globalPort < 1 || globalPort > 65535 {
 		return nil, errors.New(fmt.Sprintf("invalid global port number %d", globalPort))
@@ -123,10 +123,6 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 			parsedSite.Path = siteValue.Path
 			parsedSite.Domain = siteValue.Domain
 			sitePort := siteValue.Port
-			if sitePort == 0 {
-				// TODO add Info message for port override with global
-				sitePort = int(pConfig.ListeningPort)
-			}
 			if sitePort < 1 || sitePort > 65535 {
 				return nil, errors.New(fmt.Sprintf("port number %d is out of range for site %s", sitePort, siteName))
 			}
