@@ -129,6 +129,10 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 			parsedSite.Port = uint16(sitePort)
 			parsedSite.RefreshPeriod = siteValue.CheckPeriod
 		}
+		_, prs := pConfig.Sites[siteName]
+		if prs {
+			return nil, errors.New(fmt.Sprintf("site %s defined more than once in %s", siteName, file))
+		}
 		pConfig.Sites[siteName] = parsedSite
 	}
 
