@@ -4,4 +4,4 @@ global:
 sites:
   default:
     endpoints:
-      - 'http://:.com'
+      - "abc.com"

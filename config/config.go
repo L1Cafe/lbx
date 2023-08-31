@@ -67,7 +67,7 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 		return nil, errors.New(fmt.Sprintf("logging level cannot be negative: %d", parsedLogLevel))
 	}
 	if parsedLogLevel > 3 {
-		// Logging cannot be higher than 3 (Fatal)
+		// Logging level cannot be higher than 3 (Fatal)
 		parsedLogLevel = 3
 	}
 	pConfig.LogLevel = uint8(rConfig.Global.LogLevel)

@@ -20,10 +20,25 @@ func TestBadPort(t *testing.T) {
 	}
 }
 
-func testInvalidEndpoint(t *testing.T) {
-	invalidEndpoint, err := config.LoadConfig("invalid_endpoint.yaml")
-	fmt.Println(invalidEndpoint)
-	fmt.Println(err.Error())
+func TestInvalidEndpoints(t *testing.T) {
+	_, err := config.LoadConfig("invalid_endpoint.yaml")
+	if err == nil {
+		t.Errorf("An invalid endpoint was accepted in invalid_endpoint.yaml")
+	} else if err != nil && !strings.Contains(err.Error(), "is not a valid endpoint") {
+		t.Errorf("Unexpected error. Expected an invalid endpoint error, got %s", err.Error())
+	}
+	_, err = config.LoadConfig("no_scheme.yaml")
+	if err == nil {
+		t.Errorf("An invalid endpoint was accepted in invalid_endpoint.yaml")
+	} else if err != nil && !strings.Contains(err.Error(), "a scheme and a host") {
+		t.Errorf("Unexpected error. Expected an invalid endpoint error, got %s", err.Error())
+	}
+	_, err = config.LoadConfig("no_http.yaml")
+	if err == nil {
+		t.Errorf("An invalid endpoint was accepted in invalid_endpoint.yaml")
+	} else if err != nil && !strings.Contains(err.Error(), "HTTP and HTTPS") {
+		t.Errorf("Unexpected error. Expected an invalid endpoint error, got %s", err.Error())
+	}
 }
 
 func TestOverrideDefault(t *testing.T) {
@@ -39,6 +54,20 @@ func TestOverrideDefault(t *testing.T) {
 	}
 }
 
+func TestInvalidYAML(t *testing.T) {
+	_, err := config.LoadConfig("/bin/false")
+	if err == nil {
+		t.Error("Expected failure when trying to load /bin/false as a configuration file")
+	}
+}
+
+func TestNoSuchFile(t *testing.T) {
+	_, err := config.LoadConfig("/dev/null/doesnotexist")
+	if err == nil {
+		t.Error("Expected failure when trying to load /dev/null/doesnotexist")
+	}
+}
+
 func TestReadConfig(t *testing.T) {
 	c, err := config.LoadConfig("config_test.yaml")
 	if err != nil {
@@ -46,7 +75,7 @@ func TestReadConfig(t *testing.T) {
 	}
 
 	d1, _ := url.Parse("http://localhost:8081")
-	d2, _ := url.Parse("http://localhost:8081")
+	d2, _ := url.Parse("http://localhost:8082")
 	dDuration, _ := time.ParseDuration("10s")
 	defaultSite := config.SiteParsedConfig{
 		Endpoints:     []url.URL{*d1, *d2},
@@ -80,7 +109,7 @@ func TestReadConfig(t *testing.T) {
 		Path:          "/",
 		Port:          6789,
 	}
-	pau, _ := url.Parse("http://localhost:8380")
+	pau, _ := url.Parse("http://localhost:5305")
 	pathTest := config.SiteParsedConfig{
 		Endpoints:     []url.URL{*pau},
 		RefreshPeriod: dDuration,

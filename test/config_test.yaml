@@ -3,29 +3,29 @@ global:
   log_level: 1
 sites:
   default:
-    servers:
+    endpoints:
       - "http://localhost:8081"
       - "http://localhost:8082"
     check_period: 10s
   site_test:
-    servers:
+    endpoints:
       - "http://localhost:8083"
     check_period: 60s
     domain: localhost
     path: "/folder"
     port: 5000
   default_test:
-    servers:
+    endpoints:
       - "http://localhost:8280"
   domain_test:
-    servers:
+    endpoints:
       - "http://localhost:8479"
     domain: "example.com"
   path_test:
-    servers:
+    endpoints:
       - "http://localhost:5305"
     path: "/examplepath"
   port_test:
-    servers:
+    endpoints:
       - "http://localhost:8380"
     port: 6789
