@@ -6,6 +6,7 @@ import (
 	"github.com/L1Cafe/lbx/config"
 	"github.com/L1Cafe/lbx/log"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -17,9 +18,8 @@ var sites map[string]*site
 
 // healthyEndpoints is a thread-safe mutating structure that holds a list of the endpoints
 type healthyEndpoints struct {
-	mutex                *sync.RWMutex
-	currentEndpointIndex *uint32
-	endpoints            *[]url.URL
+	mutex     *sync.RWMutex
+	endpoints *[]url.URL
 }
 
 // site is a read-only structure that comes from the parameters defined in the configuration file
@@ -43,10 +43,8 @@ func newSite(name string, endpoints []url.URL, refreshPeriod time.Duration, doma
 	s.port = port
 	he := new(healthyEndpoints)
 	heM := new(sync.RWMutex)
-	heCei := new(uint32)
 	heE := new([]url.URL)
 	he.mutex = heM
-	he.currentEndpointIndex = heCei
 	he.endpoints = heE
 	s.healthyEndpoints = he
 	return s
@@ -75,7 +73,10 @@ func autoHealthCheck(siteKey string) {
 		for _, endpoint := range s.endpoints {
 			log.Wrapper(log.Info, fmt.Sprintf(
 				"Checking health status of endpoint %s for site %s", endpoint.String(), siteKey))
-			// TODO actually check endpoint
+			err := isUrlHealthy(endpoint)
+			if err == nil {
+				*currentHealthyEndpoints = append(*currentHealthyEndpoints, endpoint)
+			}
 		}
 		s.healthyEndpoints.mutex.Lock()
 		// swap list of previously healthy endpoints with the list of currently healthy ones
@@ -86,21 +87,34 @@ func autoHealthCheck(siteKey string) {
 	}
 }
 
-// healthCheck is a manual endpoint check that is triggered when an endpoint misbehaves, and will evict the endpoint if
-// it's unhealthy
-func healthCheck(siteKey string, u url.URL) {
-	s := sites[siteKey]
-	endpointList := s.endpoints
-	for _, endpointUrl := range endpointList {
-		if endpointUrl == u {
-			// TODO check u
-			// If u healthy, make sure it's in the healthy list
-			// If u unhealthy, make a new list, lock the old healthy one for read, if it's there take it out, and then swap
-		}
+// healthCheck is a manual endpoint check that returns an error on any reading error as well as 500 error codes
+func isUrlHealthy(u url.URL) error {
+	// TODO check u
+	res, err := http.Head(u.String())
+	if err != nil {
+		return err
 	}
+	if res.StatusCode >= 500 {
+		return fmt.Errorf("received %d status from %s", res.StatusCode, u.String())
+	}
+	return nil
 }
 
-func GetRandomEndpoint(siteKey string) (url.URL, error) {
+func markUnhealthy(s string, u url.URL) {
+	site := sites[s]
+	site.healthyEndpoints.mutex.Lock()
+	for _, su := range *site.healthyEndpoints.endpoints {
+		currentHealthyEndpoints := new([]url.URL)
+		if su != u {
+			*currentHealthyEndpoints = append(*currentHealthyEndpoints, su)
+		} else {
+			log.Wrapper(log.Info, fmt.Sprintf("Endpoint %s evicted from healthy endpoints list for site %s", u.String(), s))
+		}
+	}
+	site.healthyEndpoints.mutex.Unlock()
+}
+
+func GetRandomHealthyEndpoint(siteKey string) (url.URL, error) {
 	s, ok := sites[siteKey]
 	if !ok {
 		return url.URL{}, errors.New(fmt.Sprintf("Site %s not found", siteKey))
