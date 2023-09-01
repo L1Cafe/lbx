@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"slices"
 	"sync"
 	"time"
 )
@@ -82,7 +83,7 @@ func autoHealthCheck(siteKey string) {
 		// swap list of previously healthy endpoints with the list of currently healthy ones
 		s.healthyEndpoints.endpoints = currentHealthyEndpoints
 		s.healthyEndpoints.mutex.Unlock()
-		log.Wrapper(log.Info, fmt.Sprintf("Healthy endpoint list of site %s updated", siteKey))
+		log.Wrapper(log.Info, fmt.Sprintf("Healthy endpoint list of site %s was updated", siteKey))
 		time.Sleep(s.refreshPeriod)
 	}
 }
@@ -97,6 +98,36 @@ func isUrlHealthy(u url.URL) error {
 	if res.StatusCode >= 500 {
 		return fmt.Errorf("received %d status from %s", res.StatusCode, u.String())
 	}
+	return nil
+}
+
+func isEndpointListedHealthy(s string, u url.URL) bool {
+	// Skipping validation, this is supposed to be a safe environment
+	site := sites[s]
+	return slices.Contains(site.endpoints, u)
+}
+
+func asyncSiteHealthCheck(s string) {
+	
+}
+
+func asyncEndpointHealthCheck(s string, u url.URL) {
+	err := isUrlHealthy(u)
+	if err != nil {
+		// TODO remove endpoint
+
+	} else {
+		// TODO add endpoint if not already there
+	}
+}
+
+func queueSiteHealthCheck(s string) error {
+	// TODO queue an async check of the entire site, replace the list of healthy endpoints
+	return nil
+}
+
+func queueEndpointHealthCheck(s string, u url.URL) error {
+	// TODO queue an async check of a single endpoint from the list of healthy endpoints, remove from list of healthy endpoints if necessary
 	return nil
 }
 
