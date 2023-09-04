@@ -61,6 +61,11 @@ func Init(s *config.ParsedConfig) {
 		go autoHealthCheck(k)
 		log.Wrapper(log.Info, fmt.Sprintf("Dispatched health checks for site %s", k))
 	}
+	// TODO spawn servers for each site
+}
+
+func (site) StartServer() {
+	// TODO start server with the adequate parameters
 }
 
 // autoHealthCheck periodically checks the endpoints in the provided site name. It's ok for this function to not have
@@ -88,10 +93,10 @@ func autoHealthCheck(siteKey string) {
 	}
 }
 
-// healthCheck is a manual endpoint check that returns an error on any reading error as well as 500 error codes
+// healthCheck is an endpoint check that returns an error on any reading error as well as 500 error codes
 func isUrlHealthy(u url.URL) error {
-	// TODO check u
-	res, err := http.Head(u.String())
+	httpClient := http.Client{Timeout: 5 * time.Second}
+	res, err := httpClient.Head(u.String())
 	if err != nil {
 		return err
 	}
@@ -108,7 +113,7 @@ func isEndpointListedHealthy(s string, u url.URL) bool {
 }
 
 func asyncSiteHealthCheck(s string) {
-	
+	//TODO
 }
 
 func asyncEndpointHealthCheck(s string, u url.URL) {

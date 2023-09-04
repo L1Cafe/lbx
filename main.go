@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/L1Cafe/lbx/config"
 	"github.com/L1Cafe/lbx/log"
+	"github.com/L1Cafe/lbx/site"
 	"io"
 	"net/http"
 )
@@ -12,16 +13,16 @@ var appConfig *config.ParsedConfig
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	log.Wrapper(log.Info, fmt.Sprintf("Received request from %s: %s", r.RemoteAddr, r.RequestURI))
-	serverAddr, serverErr := getServer("default")
+	serverAddr, serverErr := site.GetRandomHealthyEndpoint("default")
 	if serverErr != nil {
 		log.Wrapper(log.Error, fmt.Sprintf("%s, request not fulfilled", serverErr.Error()))
 		http.Error(w, serverErr.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
-	// Update the request URL with the backend server's URL
+	// TODO Update the request URL with the backend server's URL
 	r.URL.Scheme = "http"
-	r.URL.Host = serverAddr
+	r.URL.Host = "??????????"
 
 	// Forward the request to the chosen backend server
 	resp, err := http.DefaultTransport.RoundTrip(r)
@@ -30,7 +31,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-	log.Wrapper(log.Info, fmt.Sprintf("Forwarded request to %s", serverAddr))
+	log.Wrapper(log.Info, fmt.Sprintf("Forwarded request to %s", serverAddr.String()))
 
 	// Copy the response back to the client
 	for key, values := range resp.Header {
@@ -53,7 +54,6 @@ func main() {
 	appConfig = c
 	log.Init(c.LogLevel)
 	// TODO need to make a wrapper to spawn one goroutine for each site
-	go healthCheck("default")
 	http.HandleFunc("/", handler)
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {

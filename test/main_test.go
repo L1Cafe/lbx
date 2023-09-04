@@ -4,12 +4,27 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/L1Cafe/lbx/config"
 	"github.com/google/uuid"
 )
+
+func TestGoogleEndToEnd(t *testing.T) {
+	c, err := config.LoadConfig("e2e.yaml")
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+	// FIXME this should be based on site parameters
+	sitePort := c.Sites["default"].Port
+	r, err := http.Get("http://127.0.0.1:" + strconv.Itoa(int(sitePort)))
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+	// TODO finish this
+}
 
 func TestEndToEnd(t *testing.T) {
 	var RandomUUID string

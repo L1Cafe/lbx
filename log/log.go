@@ -19,6 +19,7 @@ func Init(l uint8) {
 		logLevel = l
 	} else {
 		logLevel = 4
+		log.Printf("Log level not specified, defaulting to level 4")
 	}
 }
 

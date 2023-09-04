@@ -1,0 +1,8 @@
+global:
+  listening_port: 12345
+  log_level: 1
+sites:
+  default:
+    endpoints:
+      - "https://www.google.com:443"
+    check_period: 10s
