@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/L1Cafe/lbx/site"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -17,20 +18,25 @@ func TestGoogleEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err.Error())
 	}
-	// FIXME this should be based on site parameters
+	site.Init(c)
+	tenSeconds, _ := time.ParseDuration("10s")
+	time.Sleep(tenSeconds)
 	sitePort := c.Sites["default"].Port
-	r, err := http.Get("http://127.0.0.1:" + strconv.Itoa(int(sitePort)))
+	err = nil
+	_, err = http.Get("http://127.0.0.1:" + strconv.Itoa(int(sitePort)))
 	if err != nil {
 		t.Fatalf("%s", err.Error())
 	}
-	// TODO finish this
 }
 
 func TestEndToEnd(t *testing.T) {
 	var RandomUUID string
 	RandomUUID = uuid.NewString()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, %s", RandomUUID)
+		_, err := fmt.Fprintf(w, "Hello, %s", RandomUUID)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	defer ts.Close()
 
@@ -53,6 +59,6 @@ func TestEndToEnd(t *testing.T) {
 
 	// TODO need to start a process with the appropriate settings
 
-	fmt.Printf("%v", RawConfig)
+	fmt.Printf("%v", RawConfig) // FIXME remove this when this function is finished
 
 }

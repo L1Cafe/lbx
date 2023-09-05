@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"github.com/L1Cafe/lbx/config"
 	"github.com/L1Cafe/lbx/log"
+	"github.com/go-chi/chi/v5"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -16,6 +18,15 @@ import (
 // This package doesn't contain validation because the validation should be done at configuration parsing time
 
 var sites map[string]*site
+
+// portMap contains the following:
+// - ports as keys
+// - a map of path:site
+// This determines on what port each site is serving data. Also, what path is each site responsible for
+// Each path should only be claimed by one site at a time
+var portMap map[uint16]mapPathSite
+
+type mapPathSite map[string]*site
 
 // healthyEndpoints is a thread-safe mutating structure that holds a list of the endpoints
 type healthyEndpoints struct {
@@ -51,34 +62,40 @@ func newSite(name string, endpoints []url.URL, refreshPeriod time.Duration, doma
 	return s
 }
 
-func Init(s *config.ParsedConfig) {
-	for k, v := range s.Sites {
-		// TODO assign as necessary
-		sites[k] = newSite(k, v.Endpoints, v.RefreshPeriod, v.Domain, v.Path, v.Port)
-		log.Wrapper(log.Info, fmt.Sprintf("Loaded configuration for site %s", k))
-	}
-	for k := range sites {
-		go autoHealthCheck(k)
-		log.Wrapper(log.Info, fmt.Sprintf("Dispatched health checks for site %s", k))
-	}
-	// TODO spawn servers for each site
+func Init(conf *config.ParsedConfig) {
+	// FIXME NEED TO RETHINK THIS
+	// Step 1: Read the config
+	// Step 2: Add the sites to the sites map
+	// Step 3: Add the port -> path:site to the portMap map
+	// Step 4: Dispatch healthchecks
+	// Step 5: Start servers
 }
 
-func (site) StartServer() {
-	// TODO start server with the adequate parameters
+func startServer(port uint16) {
+	pathSite := portMap[port]
+	// TODO finish actually serving the website
+	chiRouter := chi.NewRouter()
+	for p, _ := range pathSite {
+		chiRouter.Get(p, func(w http.ResponseWriter, r *http.Request) {
+			// TODO finish this
+			w.Write([]byte("Hello, world!"))
+		})
+	}
+	portString := strconv.Itoa(int(port))
+	err := http.ListenAndServe(":"+portString, chiRouter)
+	if err != nil {
+		log.Wrapper(log.Fatal, fmt.Sprintf("Error trying to bind to port %d: %s", port, err))
+	}
 }
 
-// autoHealthCheck periodically checks the endpoints in the provided site name. It's ok for this function to not have
-// any validaton, because it's unexported.
-func autoHealthCheck(siteKey string) {
-	s := sites[siteKey]
+// autoHealthCheck periodically checks the endpoints in the provided site name.
+func (s *site) autoHealthCheck() {
 	for {
 		currentHealthyEndpoints := new([]url.URL)
-		log.Wrapper(log.Info, fmt.Sprintf("Checking healthy endpoints for site %s", siteKey))
-		// TODO: check health of every endpoint and make list of healthy endpoints
+		log.Wrapper(log.Info, fmt.Sprintf("Checking healthy endpoints for site %s", s.name))
 		for _, endpoint := range s.endpoints {
 			log.Wrapper(log.Info, fmt.Sprintf(
-				"Checking health status of endpoint %s for site %s", endpoint.String(), siteKey))
+				"Checking health status of endpoint %s for site %s", endpoint.String(), s.name))
 			err := isUrlHealthy(endpoint)
 			if err == nil {
 				*currentHealthyEndpoints = append(*currentHealthyEndpoints, endpoint)
@@ -88,7 +105,7 @@ func autoHealthCheck(siteKey string) {
 		// swap list of previously healthy endpoints with the list of currently healthy ones
 		s.healthyEndpoints.endpoints = currentHealthyEndpoints
 		s.healthyEndpoints.mutex.Unlock()
-		log.Wrapper(log.Info, fmt.Sprintf("Healthy endpoint list of site %s was updated", siteKey))
+		log.Wrapper(log.Info, fmt.Sprintf("Healthy endpoint list of site %s was updated", s.name))
 		time.Sleep(s.refreshPeriod)
 	}
 }
