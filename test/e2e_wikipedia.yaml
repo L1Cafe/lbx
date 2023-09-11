@@ -1,8 +1,8 @@
 global:
-  listening_port: 7263
+  listening_port: 12345
   log_level: 1
 sites:
   default:
     endpoints:
-      - "http://127.0.0.1:5678"
+      - "https://www.wikipedia.org:443"
     check_period: 10s

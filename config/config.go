@@ -94,11 +94,11 @@ func LoadConfig(file string) (*ParsedConfig, error) {
 		parsedSite.RefreshPeriod = siteValue.CheckPeriod
 		if siteName == "default" {
 			parsedSite.Domain = ""
-			parsedSite.Path = "/"
+			parsedSite.Path = "/*"
 			parsedSite.Port = uint16(rConfig.Global.ListeningPort)
 		} else {
 			if siteValue.Path == "" {
-				siteValue.Path = "/"
+				siteValue.Path = "/*"
 			}
 			if siteValue.Domain == "" {
 				siteValue.Domain = ""

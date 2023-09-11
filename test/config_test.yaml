@@ -12,7 +12,7 @@ sites:
       - "http://localhost:8083"
     check_period: 60s
     domain: localhost
-    path: "/folder"
+    path: "/folder/*"
     port: 5000
   default_test:
     endpoints:
@@ -24,7 +24,7 @@ sites:
   path_test:
     endpoints:
       - "http://localhost:5305"
-    path: "/examplepath"
+    path: "/examplepath/*"
   port_test:
     endpoints:
       - "http://localhost:8380"

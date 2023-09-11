@@ -47,7 +47,7 @@ func TestOverrideDefault(t *testing.T) {
 		t.Errorf("Error loading configuration override_default.yaml")
 	}
 	if overrideConfig.Sites["default"].Domain != "" ||
-		overrideConfig.Sites["default"].Path != "/" ||
+		overrideConfig.Sites["default"].Path != "/*" ||
 		overrideConfig.Sites["default"].Port != overrideConfig.ListeningPort {
 		t.Errorf("Default configuration must never be overridden for domain, path, or port:\n%#v",
 			overrideConfig.Sites["default"])
@@ -99,7 +99,7 @@ func TestReadConfig(t *testing.T) {
 		Endpoints:     []url.URL{*d1, *d2},
 		RefreshPeriod: dDuration,
 		Domain:        "",
-		Path:          "/",
+		Path:          "/*",
 		Port:          8080,
 	}
 	s1u, _ := url.Parse("http://localhost:8083")
@@ -108,7 +108,7 @@ func TestReadConfig(t *testing.T) {
 		Endpoints:     []url.URL{*s1u},
 		RefreshPeriod: s1Duration,
 		Domain:        "localhost",
-		Path:          "/folder",
+		Path:          "/folder/*",
 		Port:          5000,
 	}
 	du, _ := url.Parse("http://localhost:8280")
@@ -116,7 +116,7 @@ func TestReadConfig(t *testing.T) {
 		Endpoints:     []url.URL{*du},
 		RefreshPeriod: dDuration,
 		Domain:        "",
-		Path:          "/",
+		Path:          "/*",
 		Port:          c.ListeningPort,
 	}
 	pu, _ := url.Parse("http://localhost:8380")
@@ -124,7 +124,7 @@ func TestReadConfig(t *testing.T) {
 		Endpoints:     []url.URL{*pu},
 		RefreshPeriod: dDuration,
 		Domain:        "",
-		Path:          "/",
+		Path:          "/*",
 		Port:          6789,
 	}
 	pau, _ := url.Parse("http://localhost:5305")
@@ -132,7 +132,7 @@ func TestReadConfig(t *testing.T) {
 		Endpoints:     []url.URL{*pau},
 		RefreshPeriod: dDuration,
 		Domain:        "",
-		Path:          "/examplepath",
+		Path:          "/examplepath/*",
 		Port:          c.ListeningPort,
 	}
 	domu, _ := url.Parse("http://localhost:8479")
@@ -140,7 +140,7 @@ func TestReadConfig(t *testing.T) {
 		Endpoints:     []url.URL{*domu},
 		RefreshPeriod: dDuration,
 		Domain:        "example.com",
-		Path:          "/",
+		Path:          "/*",
 		Port:          c.ListeningPort,
 	}
 	expectedConfig := config.ParsedConfig{
